@@ -11,7 +11,11 @@ from google.auth.transport.requests import Request
 from googleapiclient.http import MediaIoBaseDownload
 
 # If modifying these scopes, delete the file token.pickle.
-SCOPES = ['https://www.googleapis.com/auth/drive.metadata.readonly']
+SCOPES = [
+    'https://www.googleapis.com/auth/drive.metadata.readonly',
+    'https://www.googleapis.com/auth/drive',
+    'https://www.googleapis.com/auth/spreadsheets'
+]
 
 def init_service():
     """
@@ -57,15 +61,17 @@ def search_named(service, pattern):
     return files
 
 def download_file(service, file_id, mime_type, name, path):
-    output_path = path / name
-    logging.info(f"Attempting to download {name} ({file_id}) to {output_path}")
+    output_path = path / (name + ".xlsx")
+    if "google-apps.spreadsheet" in mime_type:
+        mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    logging.info(f"Attempting to download {name} ({file_id}) to {output_path} using mimeType {mime_type}")
     request = service.files().export_media(fileId=file_id, mimeType=mime_type)
-    with open(output_path, 'w') as fh:
-        downloader = MediaIoBaseDownload(fh, request)
-        done = False
-        while done is False:
-            status, done = downloader.next_chunk()
-            logging.debug(f"Download {int(status.progress() * 100)}% complete")
+    fh = io.FileIO(output_path, 'wb')
+    downloader = MediaIoBaseDownload(fh, request)
+    done = False
+    while done is False:
+        status, done = downloader.next_chunk()
+        logging.debug(f"Download {int(status.progress() * 100)}% complete")
 
 
 def main():
