@@ -5,6 +5,7 @@ from pathlib import Path
 import argparse
 import coloredlogs
 import logging
+import datetime
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
@@ -60,8 +61,12 @@ def search_named(service, pattern):
 
     return files
 
-def download_file(service, file_id, mime_type, name, path):
-    output_path = path / (name + ".xlsx")
+def download_file(service, file_id, mime_type, name, path, include_dates=False):
+    if include_dates:
+        now = datetime.datetime.now()
+        output_path = path / (name + f" - {now:%Y%m%d_%H_%M}.xlsx")
+    else:
+        output_path = path / (name + ".xlsx")
     if "google-apps.spreadsheet" in mime_type:
         mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     logging.info(f"Attempting to download {name} ({file_id}) to {output_path} using mimeType {mime_type}")
@@ -76,9 +81,10 @@ def download_file(service, file_id, mime_type, name, path):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-v', '--verbose', action='count')
-    parser.add_argument('-o', '--output', default='.', help='Path to store downloads in')
     parser.add_argument('pattern', help='Pattern of files to download')
+    parser.add_argument('-v', '--verbose', action='count')
+    parser.add_argument('-d', '--dates', action='store_true', help='Modify file name to include date')
+    parser.add_argument('-o', '--output', default='.', help='Path to store downloads in')
     args = parser.parse_args()
 
     if args.verbose:
@@ -93,7 +99,7 @@ def main():
     to_download = search_named(service, args.pattern)
     output = Path(args.output)
     for file_id, mime_type, name in to_download:
-        download_file(service, file_id, mime_type, name, output)
+        download_file(service, file_id, mime_type, name, output, include_dates=args.dates)
 
 if __name__ == '__main__':
     main()
